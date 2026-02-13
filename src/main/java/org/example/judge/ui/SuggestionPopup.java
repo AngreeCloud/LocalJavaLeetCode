@@ -1,10 +1,12 @@
 package org.example.judge.ui;
 
 import javafx.geometry.Insets;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
-import javafx.scene.paint.Color;
+import javafx.stage.Window;
 
 /**
  * SuggestionPopup - Popup para mostrar sugestões de código.
@@ -94,16 +96,17 @@ public class SuggestionPopup {
      * Mostra o popup com a sugestão nas coordenadas especificadas.
      *
      * @param suggestion Sugestão a mostrar
+     * @param ownerWindow Janela proprietária do popup
      * @param x Coordenada X na tela
      * @param y Coordenada Y na tela
      * @param onInsert Callback executado ao inserir
      */
-    public void show(String suggestion, double x, double y, Runnable onInsert) {
+    public void show(String suggestion, Window ownerWindow, double x, double y, Runnable onInsert) {
         this.onInsert = onInsert;
         suggestionLabel.setText(suggestion);
 
-        if (!popup.isShowing()) {
-            popup.show(insertButton.getScene().getWindow(), x, y);
+        if (!popup.isShowing() && ownerWindow != null) {
+            popup.show(ownerWindow, x, y);
         }
     }
 

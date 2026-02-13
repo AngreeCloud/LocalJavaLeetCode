@@ -291,5 +291,94 @@ public class CodeAnalyzer {
         
         return Math.max(0, depth);
     }
+
+    /**
+     * Verifica se o código solicita input do utilizador.
+     * 
+     * Deteta:
+     * - Scanner com System.in
+     * - BufferedReader com InputStreamReader(System.in)
+     * - System.console()
+     * - Outros padrões de input interativo
+     *
+     * @param code Código a verificar
+     * @return true se solicita input do utilizador
+     */
+    public boolean requiresUserInput(String code) {
+        if (code == null || code.isEmpty()) {
+            return false;
+        }
+        
+        // Padrões que indicam input do utilizador
+        return code.contains("Scanner") && code.contains("System.in") ||
+               code.contains("BufferedReader") && code.contains("System.in") ||
+               code.contains("InputStreamReader(System.in)") ||
+               code.contains("System.console()") ||
+               code.contains(".nextInt()") ||
+               code.contains(".nextLine()") ||
+               code.contains(".nextDouble()") ||
+               code.contains(".next()") ||
+               code.contains(".readLine()") && code.contains("System.in");
+    }
+
+    /**
+     * Verifica se o código requer execução interativa (terminal).
+     * 
+     * Deteta código que:
+     * - Solicita input do utilizador
+     * - Trabalha com ficheiros (FileReader, FileWriter, etc.)
+     * - Usa Sockets (TCP/IP)
+     * - Usa Serialização (ObjectInputStream, ObjectOutputStream)
+     * - Qualquer I/O que precise de recursos externos
+     *
+     * @param code Código a verificar
+     * @return true se requer execução em terminal interativo
+     */
+    public boolean requiresInteractiveExecution(String code) {
+        if (code == null || code.isEmpty()) {
+            return false;
+        }
+        
+        // Input do utilizador
+        if (requiresUserInput(code)) {
+            return true;
+        }
+        
+        // Trabalho com ficheiros de texto
+        if (code.contains("FileReader") || 
+            code.contains("FileWriter") || 
+            code.contains("BufferedWriter") ||
+            code.contains("PrintWriter") && code.contains("FileOutputStream") ||
+            code.contains("Files.write") ||
+            code.contains("Files.read")) {
+            return true;
+        }
+        
+        // Trabalho com ficheiros binários
+        if (code.contains("FileInputStream") || 
+            code.contains("FileOutputStream") ||
+            code.contains("DataInputStream") ||
+            code.contains("DataOutputStream") ||
+            code.contains("RandomAccessFile")) {
+            return true;
+        }
+        
+        // Serialização
+        if (code.contains("ObjectInputStream") || 
+            code.contains("ObjectOutputStream") ||
+            code.contains("Serializable")) {
+            return true;
+        }
+        
+        // Networking (TCP/IP, UDP)
+        if (code.contains("Socket") || 
+            code.contains("ServerSocket") ||
+            code.contains("DatagramSocket") ||
+            code.contains("InetAddress")) {
+            return true;
+        }
+        
+        return false;
+    }
 }
 

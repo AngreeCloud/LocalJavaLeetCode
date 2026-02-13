@@ -1,10 +1,11 @@
 package org.example.judge;
 
+import org.example.judge.core.FileManager;
+import org.example.judge.ui.UIController;
+
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-import org.example.judge.core.FileManager;
-import org.example.judge.ui.UIController;
 
 /**
  * MainApp - Entry point da aplicação JavaFX.
@@ -58,6 +59,7 @@ public class MainApp extends Application {
         primaryStage.setScene(scene);
         primaryStage.setMinWidth(800);
         primaryStage.setMinHeight(600);
+        primaryStage.setMaximized(true);  // Iniciar maximizado
 
         // Mostrar stage
         primaryStage.show();

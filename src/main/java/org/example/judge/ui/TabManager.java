@@ -1,5 +1,8 @@
 package org.example.judge.ui;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.example.judge.model.ComparisonResult;
 
 import javafx.scene.control.Tab;
@@ -28,64 +31,105 @@ public class TabManager {
 
     private TabPane tabPane;
 
-    // Tabs
-    private Tab userCodeTab;
-    private Tab expectedOutputTab;
+    // Tabs fixas
     private Tab userOutputTab;
     private Tab comparisonTab;
 
-    // Conteúdo das tabs
-    private TextArea userCodeEditor;
-    private TextArea expectedOutputArea;
+    // Conteúdo das tabs fixas
     private TextArea userOutputArea;
     private TextArea comparisonArea;
+
+    // Tabs dinâmicas para ficheiros de solução (nome -> Tab)
+    private Map<String, Tab> solutionFileTabs;
+    // Editores para cada ficheiro de solução (nome -> TextArea)
+    private Map<String, TextArea> solutionFileEditors;
+    // Tab ativa atual
+    private String activeFileName;
+    private TextArea activeEditor;
 
     /**
      * Construtor - Cria as tabs fixas.
      */
     public TabManager() {
+        solutionFileTabs = new HashMap<>();
+        solutionFileEditors = new HashMap<>();
         createFixedTabs();
     }
 
     /**
-     * Cria as 4 tabs fixas e não removíveis.
+     * Cria as tabs fixas (outputs e comparação).
      */
     private void createFixedTabs() {
-        // TODO: Implementar
-        // 1. Criar TabPane
-        // 2. Criar cada tab:
-        //    - Tab 1: Editor de código (editável)
-        //    - Tab 2: Output esperado (read-only)
-        //    - Tab 3: Output do utilizador (read-only)
-        //    - Tab 4: Comparação (read-only, com cores)
-        // 3. Definir todas como não closable (setClosable(false))
-        // 4. Adicionar ao TabPane
+        tabPane = new TabPane();
+        
+        userOutputTab = createUserOutputTab();
+        comparisonTab = createComparisonTab();
+        
+        tabPane.getTabs().addAll(userOutputTab, comparisonTab);
+        
+        // Listener para detectar mudança de tab ativa
+        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab != null && solutionFileTabs.containsValue(newTab)) {
+                // Encontrar o nome do ficheiro correspondente
+                for (Map.Entry<String, Tab> entry : solutionFileTabs.entrySet()) {
+                    if (entry.getValue() == newTab) {
+                        activeFileName = entry.getKey();
+                        activeEditor = solutionFileEditors.get(activeFileName);
+                        break;
+                    }
+                }
+            }
+        });
     }
 
     /**
-     * Cria a tab de código do utilizador (editável).
+     * Cria tabs para ficheiros de solução.
      *
-     * @return Tab configurada
+     * @param fileNames Lista de nomes de ficheiros
      */
-    private Tab createUserCodeTab() {
-        // TODO: Implementar
-        // 1. Criar TextArea ou CodeArea (RichTextFX)
-        // 2. Configurar font monospace
-        // 3. Adicionar placeholder text
-        // 4. Envolver em ScrollPane
-        return null; // TODO
+    public void createSolutionFileTabs(java.util.List<String> fileNames) {
+        // Remover tabs antigas de solução
+        solutionFileTabs.values().forEach(tab -> tabPane.getTabs().remove(tab));
+        solutionFileTabs.clear();
+        solutionFileEditors.clear();
+        
+        // Criar tabs para cada ficheiro
+        for (String fileName : fileNames) {
+            TextArea editor = new TextArea();
+            editor.setPromptText("Código de " + fileName + "...");
+            editor.setStyle("-fx-font-family: 'Courier New', monospace; -fx-font-size: 13px;");
+            editor.setWrapText(false);
+            
+            Tab tab = new Tab("📝 " + fileName, editor);
+            tab.setClosable(false);
+            
+            solutionFileTabs.put(fileName, tab);
+            solutionFileEditors.put(fileName, editor);
+            
+            // Adicionar tab antes das tabs fixas
+            tabPane.getTabs().add(tabPane.getTabs().size() - 2, tab);
+        }
+        
+        // Ativar primeira tab se houver
+        if (!fileNames.isEmpty()) {
+            String firstName = fileNames.get(0);
+            activeFileName = firstName;
+            activeEditor = solutionFileEditors.get(firstName);
+            tabPane.getSelectionModel().select(solutionFileTabs.get(firstName));
+        }
     }
 
     /**
-     * Cria tab de output esperado (read-only).
+     * Define o conteúdo de um ficheiro de solução específico.
      *
-     * @return Tab configurada
+     * @param fileName Nome do ficheiro
+     * @param content Conteúdo do ficheiro
      */
-    private Tab createExpectedOutputTab() {
-        // TODO: Implementar
-        // 1. Criar TextArea (read-only)
-        // 2. Estilo diferente (indicar que é read-only)
-        return null; // TODO
+    public void setSolutionFileContent(String fileName, String content) {
+        TextArea editor = solutionFileEditors.get(fileName);
+        if (editor != null) {
+            editor.setText(content);
+        }
     }
 
     /**
@@ -94,8 +138,15 @@ public class TabManager {
      * @return Tab configurada
      */
     private Tab createUserOutputTab() {
-        // TODO: Implementar
-        return null; // TODO
+        userOutputArea = new TextArea();
+        userOutputArea.setEditable(false);
+        userOutputArea.setPromptText("Output do seu código aparecerá aqui...");
+        userOutputArea.setStyle("-fx-font-family: 'Courier New', monospace; -fx-font-size: 13px; -fx-background-color: #f9f9f9;");
+        userOutputArea.setWrapText(true);
+        
+        Tab tab = new Tab("💻 Output do Utilizador", userOutputArea);
+        tab.setClosable(false);
+        return tab;
     }
 
     /**
@@ -104,40 +155,42 @@ public class TabManager {
      * @return Tab configurada
      */
     private Tab createComparisonTab() {
-        // TODO: Implementar
-        // Usar cores:
-        // - Verde para linhas corretas
-        // - Vermelho para linhas incorretas
-        // - Cinza para informações
-        return null; // TODO
+        comparisonArea = new TextArea();
+        comparisonArea.setEditable(false);
+        comparisonArea.setPromptText("Resultado da comparação aparecerá aqui...");
+        comparisonArea.setStyle("-fx-font-family: 'Courier New', monospace; -fx-font-size: 13px; -fx-background-color: #fffef0;");
+        comparisonArea.setWrapText(true);
+        
+        Tab tab = new Tab("🔍 Resultado da Comparação", comparisonArea);
+        tab.setClosable(false);
+        return tab;
     }
 
     /**
      * Retorna o TabPane principal.
      *
-     * @return TabPane com as 4 tabs
+     * @return TabPane
      */
     public TabPane getTabPane() {
         return tabPane;
     }
 
     /**
-     * Retorna o editor de código do utilizador.
+     * Retorna o editor de código ativo.
      *
-     * @return TextArea do editor
+     * @return TextArea do editor ativo
      */
-    public TextArea getUserCodeEditor() {
-        return userCodeEditor;
+    public TextArea getActiveEditor() {
+        return activeEditor;
     }
 
     /**
-     * Define o conteúdo do output esperado.
+     * Retorna o nome do ficheiro ativo.
      *
-     * @param content Conteúdo da solução oficial
+     * @return Nome do ficheiro ou null
      */
-    public void setExpectedOutput(String content) {
-        // TODO: Implementar
-        // expectedOutputArea.setText(content);
+    public String getActiveFileName() {
+        return activeFileName;
     }
 
     /**
@@ -146,8 +199,7 @@ public class TabManager {
      * @param content Output capturado da execução
      */
     public void setUserOutput(String content) {
-        // TODO: Implementar
-        // userOutputArea.setText(content);
+        userOutputArea.setText(content);
     }
 
     /**
@@ -156,23 +208,26 @@ public class TabManager {
      * @param result Resultado da comparação
      */
     public void setComparisonResult(ComparisonResult result) {
-        // TODO: Implementar
-        // 1. Formatar resultado (generateReport())
-        // 2. Aplicar cores (verde/vermelho)
-        // 3. Mostrar estatísticas
-        // 4. Mostrar linhas diferentes
+        if (result == null) {
+            comparisonArea.setText("Erro ao comparar outputs.");
+            return;
+        }
+        
+        String report = result.generateReport();
+        comparisonArea.setText(report);
     }
 
     /**
-     * Retorna a linha atual do cursor no editor.
+     * Retorna a linha atual do cursor no editor ativo.
      *
      * @return Número da linha (0-based)
      */
     public int getCurrentCursorLine() {
-        String text = userCodeEditor.getText();
-        int caretPosition = userCodeEditor.getCaretPosition();
+        if (activeEditor == null) return 0;
+        
+        String text = activeEditor.getText();
+        int caretPosition = activeEditor.getCaretPosition();
 
-        // Contar \n até a posição do cursor
         int lineCount = 0;
         for (int i = 0; i < caretPosition && i < text.length(); i++) {
             if (text.charAt(i) == '\n') {
@@ -189,10 +244,11 @@ public class TabManager {
      * @return String com conteúdo da linha
      */
     public String getCurrentLineContent() {
-        String text = userCodeEditor.getText();
-        int caretPosition = userCodeEditor.getCaretPosition();
+        if (activeEditor == null) return "";
+        
+        String text = activeEditor.getText();
+        int caretPosition = activeEditor.getCaretPosition();
 
-        // Encontrar início e fim da linha atual
         int lineStart = text.lastIndexOf('\n', caretPosition - 1) + 1;
         int lineEnd = text.indexOf('\n', caretPosition);
         if (lineEnd == -1) {
@@ -203,40 +259,53 @@ public class TabManager {
     }
 
     /**
-     * Insere uma sugestão no editor na posição do cursor.
+     * Insere uma sugestão no editor ativo na posição do cursor.
      *
      * @param suggestion Sugestão a inserir
      */
     public void insertSuggestion(String suggestion) {
-        int caretPosition = userCodeEditor.getCaretPosition();
-        String currentText = userCodeEditor.getText();
+        if (activeEditor == null) return;
+        
+        int caretPosition = activeEditor.getCaretPosition();
+        String currentText = activeEditor.getText();
 
-        // Inserir na nova linha
         String newText = currentText.substring(0, caretPosition) +
                         "\n" + suggestion +
                         currentText.substring(caretPosition);
 
-        userCodeEditor.setText(newText);
-        userCodeEditor.positionCaret(caretPosition + suggestion.length() + 1);
+        activeEditor.setText(newText);
+        activeEditor.positionCaret(caretPosition + suggestion.length() + 1);
     }
 
     /**
-     * Retorna todo o código do utilizador.
+     * Retorna todo o código do editor ativo.
      *
      * @return String com código completo
      */
     public String getUserCode() {
-        return userCodeEditor.getText();
+        if (activeEditor == null) return "";
+        return activeEditor.getText();
     }
 
     /**
-     * Limpa todas as tabs (exceto código do utilizador).
+     * Retorna todos os conteúdos dos ficheiros de solução editados.
+     *
+     * @return Map com nome do ficheiro -> conteúdo
+     */
+    public Map<String, String> getAllSolutionFileContents() {
+        Map<String, String> contents = new HashMap<>();
+        for (Map.Entry<String, TextArea> entry : solutionFileEditors.entrySet()) {
+            contents.put(entry.getKey(), entry.getValue().getText());
+        }
+        return contents;
+    }
+
+    /**
+     * Limpa todas as tabs de output.
      */
     public void clearOutputs() {
-        // TODO: Implementar
-        // expectedOutputArea.clear();
-        // userOutputArea.clear();
-        // comparisonArea.clear();
+        userOutputArea.clear();
+        comparisonArea.clear();
     }
 }
 

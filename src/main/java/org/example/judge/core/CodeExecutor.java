@@ -1,9 +1,14 @@
 package org.example.judge.core;
 
-import org.example.judge.model.ExecutionResult;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Path;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import org.example.judge.model.ExecutionResult;
 
 /**
  * CodeExecutor - Compilador e executor de código Java.
@@ -70,16 +75,62 @@ public class CodeExecutor {
     }
 
     /**
+     * Compila múltiplos ficheiros Java (suporte para OOP e polimorfismo).
+     *
+     * @param sourceFiles Lista de caminhos dos ficheiros .java
+     * @return ExecutionResult com resultado da compilação
+     */
+    public ExecutionResult compileMultiple(List<Path> sourceFiles) {
+        long startTime = System.currentTimeMillis();
+
+        try {
+            if (sourceFiles == null || sourceFiles.isEmpty()) {
+                return new ExecutionResult(false, "", "Nenhum ficheiro para compilar", -1, 0);
+            }
+
+            ProcessBuilder pb = createMultipleCompileProcess(sourceFiles);
+            Process process = pb.start();
+
+            // Capturar stderr (erros de compilação)
+            String errors = captureErrors(process);
+
+            // Aguardar conclusão
+            int exitCode = process.waitFor();
+            long executionTime = System.currentTimeMillis() - startTime;
+
+            boolean success = (exitCode == 0);
+
+            return new ExecutionResult(success, "", errors, exitCode, executionTime);
+
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            return new ExecutionResult(false, "", "Erro ao compilar: " + e.getMessage(),
+                                     -1, executionTime);
+        }
+    }
+
+    /**
      * Executa o código Java compilado.
      *
      * @param className Nome da classe (sem .class)
      * @return ExecutionResult com output e erros
      */
     public ExecutionResult execute(String className) {
+        return execute(className, fileManager.getTmpDir());
+    }
+
+    /**
+     * Executa o código Java compilado com diretório base customizado.
+     *
+     * @param className Nome da classe (pode incluir package: a.b.C)
+     * @param baseDir Diretório base para classpath
+     * @return ExecutionResult com output e erros
+     */
+    public ExecutionResult execute(String className, Path baseDir) {
         long startTime = System.currentTimeMillis();
         
         try {
-            ProcessBuilder pb = createExecutionProcess(className);
+            ProcessBuilder pb = createExecutionProcess(className, baseDir);
             Process process = pb.start();
             
             // Aguardar com timeout
@@ -123,15 +174,51 @@ public class CodeExecutor {
     }
 
     /**
+     * Cria ProcessBuilder para compilação de múltiplos ficheiros.
+     *
+     * @param sourceFiles Lista de ficheiros a compilar
+     * @return ProcessBuilder configurado
+     */
+    private ProcessBuilder createMultipleCompileProcess(List<Path> sourceFiles) {
+        List<String> command = new ArrayList<>();
+        command.add("javac");
+        
+        // Especificar diretório de destino para .class (importante para packages)
+        command.add("-d");
+        command.add(fileManager.getSolutionDir().toString());
+        
+        // Adicionar todos os ficheiros .java
+        for (Path file : sourceFiles) {
+            command.add(file.toString());
+        }
+        
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.directory(fileManager.getTmpDir().toFile());
+        pb.redirectErrorStream(false);
+        return pb;
+    }
+
+    /**
      * Cria ProcessBuilder para execução.
      *
      * @param className Nome da classe a executar
      * @return ProcessBuilder configurado
      */
     private ProcessBuilder createExecutionProcess(String className) {
+        return createExecutionProcess(className, fileManager.getTmpDir());
+    }
+
+    /**
+     * Cria ProcessBuilder para execução com diretório base customizado.
+     *
+     * @param className Nome da classe a executar (pode incluir package)
+     * @param baseDir Diretório base para classpath
+     * @return ProcessBuilder configurado
+     */
+    private ProcessBuilder createExecutionProcess(String className, Path baseDir) {
         ProcessBuilder pb = new ProcessBuilder("java", "-cp",
-            fileManager.getTmpDir().toString(), className);
-        pb.directory(fileManager.getTmpDir().toFile());
+            baseDir.toString(), className);
+        pb.directory(baseDir.toFile());
         return pb;
     }
 
