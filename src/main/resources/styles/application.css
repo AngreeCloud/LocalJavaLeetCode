@@ -1,0 +1,188 @@
+/* application.css - Estilos da aplicação Mini Judge */
+
+/* ============================= */
+/*      ESTILOS GERAIS           */
+/* ============================= */
+
+.root {
+    -fx-background-color: #f5f5f5;
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-font-size: 14px;
+}
+
+/* ============================= */
+/*      TOOLBAR                  */
+/* ============================= */
+
+.tool-bar {
+    -fx-background-color: #2c3e50;
+    -fx-padding: 10px;
+    -fx-spacing: 10px;
+}
+
+.tool-bar .button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 8px 16px;
+    -fx-background-radius: 5px;
+    -fx-cursor: hand;
+}
+
+.tool-bar .button:hover {
+    -fx-background-color: #2980b9;
+}
+
+.tool-bar .button:pressed {
+    -fx-background-color: #1f5f8b;
+}
+
+/* Botão de sugestão (lâmpada) */
+.suggestion-button {
+    -fx-background-color: #f39c12;
+}
+
+.suggestion-button:hover {
+    -fx-background-color: #e67e22;
+}
+
+/* ============================= */
+/*      SPLIT PANE               */
+/* ============================= */
+
+.split-pane {
+    -fx-background-color: transparent;
+}
+
+.split-pane-divider {
+    -fx-background-color: #bdc3c7;
+    -fx-padding: 2px;
+}
+
+/* ============================= */
+/*      TEXT AREAS               */
+/* ============================= */
+
+.text-area {
+    -fx-font-family: "Consolas", "Courier New", monospace;
+    -fx-font-size: 13px;
+    -fx-background-color: white;
+    -fx-text-fill: #2c3e50;
+}
+
+/* Statement Preview (read-only) */
+.statement-preview {
+    -fx-background-color: #ecf0f1;
+    -fx-control-inner-background: #ecf0f1;
+    -fx-text-fill: #2c3e50;
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-font-size: 14px;
+}
+
+/* Code Editor */
+.code-editor {
+    -fx-font-family: "Consolas", "Courier New", monospace;
+    -fx-font-size: 13px;
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #2c3e50;
+}
+
+/* Read-only output areas */
+.output-area {
+    -fx-background-color: #fafafa;
+    -fx-control-inner-background: #fafafa;
+    -fx-text-fill: #34495e;
+}
+
+/* ============================= */
+/*      TABS                     */
+/* ============================= */
+
+.tab-pane {
+    -fx-background-color: #ecf0f1;
+}
+
+.tab {
+    -fx-background-color: #bdc3c7;
+    -fx-background-radius: 5px 5px 0 0;
+}
+
+.tab:selected {
+    -fx-background-color: #3498db;
+}
+
+.tab .tab-label {
+    -fx-text-fill: #2c3e50;
+    -fx-font-weight: bold;
+}
+
+.tab:selected .tab-label {
+    -fx-text-fill: white;
+}
+
+/* ============================= */
+/*      SUGGESTION POPUP         */
+/* ============================= */
+
+.suggestion-popup {
+    -fx-background-color: white;
+    -fx-border-color: #3498db;
+    -fx-border-width: 2px;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-padding: 15px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 10, 0, 0, 2);
+}
+
+.suggestion-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+}
+
+.suggestion-code {
+    -fx-font-family: "Consolas", "Courier New", monospace;
+    -fx-font-size: 14px;
+    -fx-background-color: #f8f9fa;
+    -fx-padding: 10px;
+    -fx-border-color: #dee2e6;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+}
+
+/* ============================= */
+/*      COMPARISON AREA          */
+/* ============================= */
+
+.comparison-success {
+    -fx-text-fill: #27ae60;
+    -fx-font-weight: bold;
+}
+
+.comparison-error {
+    -fx-text-fill: #e74c3c;
+    -fx-font-weight: bold;
+}
+
+.comparison-info {
+    -fx-text-fill: #7f8c8d;
+}
+
+/* ============================= */
+/*      ALERTS                   */
+/* ============================= */
+
+.alert {
+    -fx-background-color: white;
+}
+
+.alert .header-panel {
+    -fx-background-color: #3498db;
+}
+
+.alert .header-panel .label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
