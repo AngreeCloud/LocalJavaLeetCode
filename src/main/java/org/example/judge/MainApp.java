@@ -55,7 +55,7 @@ public class MainApp extends Application {
         }
 
         // Configurar primaryStage
-        primaryStage.setTitle("Mini Judge - Sistema de Avaliação Local");
+        primaryStage.setTitle("LeetCode Local - Programar em Java");
         primaryStage.setScene(scene);
         primaryStage.setMinWidth(800);
         primaryStage.setMinHeight(600);
