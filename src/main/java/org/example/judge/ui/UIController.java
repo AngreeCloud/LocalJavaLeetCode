@@ -21,6 +21,8 @@ import org.example.judge.model.ExecutionResult;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.geometry.Point2D;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -37,6 +39,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Popup;
+import javafx.stage.Screen;
+import javafx.stage.Window;
 import javafx.util.Duration;
 
 /**
@@ -59,6 +63,8 @@ import javafx.util.Duration;
  * @version 1.0
  */
 public class UIController {
+
+    private static final int SUGGESTION_MAX_LINES = 5;
 
     // Componentes de UI
     private BorderPane root;
@@ -608,13 +614,19 @@ public class UIController {
     private void handleSuggestion() {
         try {
             String userCode = tabManager.getUserCode();
+            String userCodeUpToCursor = tabManager.getUserCodeUpToCursor();
             
             // Se editor vazio, usar código vazio para começar do início
             if (userCode == null) {
                 userCode = "";
             }
+
+            if (userCodeUpToCursor == null) {
+                userCodeUpToCursor = "";
+            }
             
             int cursorLine = tabManager.getCurrentCursorLine();
+            int cursorLineInContext = Math.max(0, userCodeUpToCursor.split("\\n", -1).length - 1);
             
             // Verificar se há ficheiros de solução carregados
             String officialSolution;
@@ -638,21 +650,44 @@ public class UIController {
             
             // Se editor está vazio, sugerir primeira linha
             String suggestion;
-            if (userCode.trim().isEmpty()) {
+            if (userCode.trim().isEmpty() || userCodeUpToCursor.trim().isEmpty()) {
                 String[] lines = officialSolution.split("\n");
                 suggestion = lines.length > 0 ? lines[0] : null;
             } else {
-                suggestion = suggestionEngine.suggestNextLine(userCode, cursorLine, officialSolution);
+                suggestion = suggestionEngine.suggestNextSnippet(
+                    userCodeUpToCursor,
+                    cursorLineInContext,
+                    officialSolution,
+                    SUGGESTION_MAX_LINES
+                );
+
+                if ((suggestion == null || suggestion.trim().isEmpty()) && cursorLineInContext != cursorLine) {
+                    suggestion = suggestionEngine.suggestNextSnippet(
+                        userCode,
+                        cursorLine,
+                        officialSolution,
+                        SUGGESTION_MAX_LINES
+                    );
+                }
             }
-            
-            if (suggestion == null || suggestion.trim().isEmpty()) {
-                showError("Não foi possível encontrar uma sugestão apropriada.");
+
+            if (suggestion == null || suggestion.trim().isEmpty() || ";".equals(suggestion.trim())) {
                 return;
             }
+
+            final String suggestionToInsert = suggestion;
             
             SuggestionPopup popup = new SuggestionPopup();
-            popup.show(suggestion, root.getScene().getWindow(), 300, 300, () -> {
-                tabManager.insertSuggestion(suggestion);
+            Point2D popupAnchor = suggestionBtn.localToScreen(0, suggestionBtn.getHeight() + 8);
+            double popupX = popupAnchor != null
+                ? popupAnchor.getX()
+                : root.getScene().getWindow().getX() + 60;
+            double popupY = popupAnchor != null
+                ? popupAnchor.getY()
+                : root.getScene().getWindow().getY() + 80;
+
+            popup.show(suggestionToInsert, root.getScene().getWindow(), popupX, popupY, () -> {
+                tabManager.insertSuggestionAtCursor(suggestionToInsert);
             });
             
         } catch (Exception e) {
@@ -694,10 +729,7 @@ public class UIController {
      * @param message Mensagem de erro
      */
     public void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Erro");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
+        Alert alert = createOwnedAlert(Alert.AlertType.ERROR, "Erro", message);
         alert.showAndWait();
     }
 
@@ -707,11 +739,82 @@ public class UIController {
      * @param message Mensagem de sucesso
      */
     public void showSuccess(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Sucesso");
+        Alert alert = createOwnedAlert(Alert.AlertType.INFORMATION, "Sucesso", message);
+        alert.showAndWait();
+    }
+
+    /**
+     * Cria alerta associado à janela principal, forçando popup no monitor correto.
+     */
+    private Alert createOwnedAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
-        alert.showAndWait();
+
+        Window ownerWindow = getOwnerWindow();
+        if (ownerWindow != null) {
+            alert.initOwner(ownerWindow);
+            alert.setOnShown(e -> clampAlertToOwnerScreen(alert, ownerWindow));
+        }
+
+        return alert;
+    }
+
+    /**
+     * Obtém janela principal atual da aplicação.
+     */
+    private Window getOwnerWindow() {
+        if (root == null || root.getScene() == null) {
+            return null;
+        }
+        return root.getScene().getWindow();
+    }
+
+    /**
+     * Garante que o alerta aparece no mesmo monitor/área visível da janela dona.
+     */
+    private void clampAlertToOwnerScreen(Alert alert, Window ownerWindow) {
+        if (alert == null || alert.getDialogPane() == null || alert.getDialogPane().getScene() == null) {
+            return;
+        }
+
+        Window alertWindow = alert.getDialogPane().getScene().getWindow();
+        if (alertWindow == null || ownerWindow == null) {
+            return;
+        }
+
+        Rectangle2D ownerBounds = new Rectangle2D(
+            ownerWindow.getX(),
+            ownerWindow.getY(),
+            ownerWindow.getWidth(),
+            ownerWindow.getHeight()
+        );
+
+        Screen ownerScreen = Screen.getScreensForRectangle(ownerBounds).isEmpty()
+            ? Screen.getPrimary()
+            : Screen.getScreensForRectangle(ownerBounds).get(0);
+
+        Rectangle2D visualBounds = ownerScreen.getVisualBounds();
+        double margin = 8;
+
+        double targetX = ownerWindow.getX() + (ownerWindow.getWidth() - alertWindow.getWidth()) / 2;
+        double targetY = ownerWindow.getY() + (ownerWindow.getHeight() - alertWindow.getHeight()) / 2;
+
+        double minX = visualBounds.getMinX() + margin;
+        double maxX = visualBounds.getMaxX() - alertWindow.getWidth() - margin;
+        double minY = visualBounds.getMinY() + margin;
+        double maxY = visualBounds.getMaxY() - alertWindow.getHeight() - margin;
+
+        alertWindow.setX(clamp(targetX, minX, maxX));
+        alertWindow.setY(clamp(targetY, minY, maxY));
+    }
+
+    private double clamp(double value, double min, double max) {
+        if (max < min) {
+            return min;
+        }
+        return Math.max(min, Math.min(value, max));
     }
 
     /**

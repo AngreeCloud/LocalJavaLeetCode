@@ -293,11 +293,36 @@ public class TabManager {
      * @param suggestion Sugestão a inserir
      */
     public void insertSuggestion(String suggestion) {
+        insertSuggestionAtCursor(suggestion);
+    }
+
+    /**
+     * Insere uma sugestão exatamente na posição atual do cursor.
+     *
+     * @param suggestion Sugestão a inserir
+     */
+    public void insertSuggestionAtCursor(String suggestion) {
         if (activeEditor == null) return;
         
         int caretPosition = activeEditor.getCaretPosition();
-        activeEditor.insertText(caretPosition, "\n" + suggestion);
-        activeEditor.moveTo(caretPosition + suggestion.length() + 1);
+        activeEditor.insertText(caretPosition, suggestion);
+        activeEditor.moveTo(caretPosition + suggestion.length());
+    }
+
+    /**
+     * Retorna o código desde o início até ao cursor (inclusive contexto atual).
+     *
+     * @return Código até posição do cursor
+     */
+    public String getUserCodeUpToCursor() {
+        if (activeEditor == null) return "";
+
+        String fullText = activeEditor.getText();
+        int caretPosition = activeEditor.getCaretPosition();
+        if (caretPosition < 0 || caretPosition > fullText.length()) {
+            return fullText;
+        }
+        return fullText.substring(0, caretPosition);
     }
 
     /**

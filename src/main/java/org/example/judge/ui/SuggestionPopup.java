@@ -1,11 +1,13 @@
 package org.example.judge.ui;
 
 import javafx.geometry.Insets;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
+import javafx.stage.Screen;
 import javafx.stage.Window;
 
 /**
@@ -30,6 +32,10 @@ import javafx.stage.Window;
  * @version 1.0
  */
 public class SuggestionPopup {
+
+    private static final double POPUP_WIDTH = 420;
+    private static final double POPUP_HEIGHT = 170;
+    private static final double WINDOW_MARGIN = 12;
 
     private Popup popup;
     private Label suggestionLabel;
@@ -56,6 +62,7 @@ public class SuggestionPopup {
         // Container principal
         VBox container = new VBox(10);
         container.setPadding(new Insets(15));
+        container.setPrefSize(POPUP_WIDTH, POPUP_HEIGHT);
         container.setStyle("-fx-background-color: white; " +
                           "-fx-border-color: #cccccc; " +
                           "-fx-border-width: 2; " +
@@ -105,9 +112,49 @@ public class SuggestionPopup {
         this.onInsert = onInsert;
         suggestionLabel.setText(suggestion);
 
-        if (!popup.isShowing() && ownerWindow != null) {
-            popup.show(ownerWindow, x, y);
+        if (ownerWindow == null) {
+            return;
         }
+
+        if (popup.isShowing()) {
+            popup.hide();
+        }
+
+        Rectangle2D ownerBounds = new Rectangle2D(
+            ownerWindow.getX(),
+            ownerWindow.getY(),
+            ownerWindow.getWidth(),
+            ownerWindow.getHeight()
+        );
+
+        Rectangle2D visualBounds = Screen.getScreensForRectangle(ownerBounds).isEmpty()
+            ? Screen.getPrimary().getVisualBounds()
+            : Screen.getScreensForRectangle(ownerBounds).get(0).getVisualBounds();
+
+        double minX = Math.max(visualBounds.getMinX() + WINDOW_MARGIN, ownerWindow.getX() + WINDOW_MARGIN);
+        double maxX = Math.min(
+            visualBounds.getMaxX() - WINDOW_MARGIN - POPUP_WIDTH,
+            ownerWindow.getX() + ownerWindow.getWidth() - WINDOW_MARGIN - POPUP_WIDTH
+        );
+
+        double minY = Math.max(visualBounds.getMinY() + WINDOW_MARGIN, ownerWindow.getY() + WINDOW_MARGIN);
+        double maxY = Math.min(
+            visualBounds.getMaxY() - WINDOW_MARGIN - POPUP_HEIGHT,
+            ownerWindow.getY() + ownerWindow.getHeight() - WINDOW_MARGIN - POPUP_HEIGHT
+        );
+
+        double targetX = clamp(x, minX, maxX);
+        double targetY = clamp(y, minY, maxY);
+
+        popup.show(ownerWindow, targetX, targetY);
+    }
+
+    private double clamp(double value, double min, double max) {
+        if (max < min) {
+            return min;
+        }
+
+        return Math.max(min, Math.min(value, max));
     }
 
     /**

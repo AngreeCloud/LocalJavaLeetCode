@@ -1,8 +1,12 @@
 package org.example.judge.core;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.example.judge.model.CodeContext;
 import org.example.judge.util.CodeAnalyzer;
-import java.util.*;
 
 /**
  * SuggestionEngine - Motor de sugestões inteligente baseado em análise contextual.
@@ -98,6 +102,39 @@ public class SuggestionEngine {
         }
         
         return suggestion;
+    }
+
+    /**
+     * Sugere um snippet de várias linhas no bloco atual (ignora linhas vazias e ';').
+     *
+     * @param userCode Código até ao cursor ou código completo
+     * @param cursorLine Linha do cursor (0-based)
+     * @param officialSolution Solução oficial
+     * @param maxLines Número máximo de linhas úteis a sugerir
+     * @return Snippet sugerido ou null se não houver sugestão útil
+     */
+    public String suggestNextSnippet(String userCode, int cursorLine, String officialSolution, int maxLines) {
+        if (userCode == null || officialSolution == null || maxLines <= 0) {
+            return null;
+        }
+
+        CodeContext userContext = analyzeUserContext(userCode, cursorLine);
+        if (userContext == null) {
+            return null;
+        }
+
+        List<ScoredLine> scoredLines = scoreOfficialLines(userContext, officialSolution);
+        int bestMatchIndex = findBestMatch(scoredLines);
+        if (bestMatchIndex == -1) {
+            return null;
+        }
+
+        String snippet = getNextSnippetInSameBlock(officialSolution, bestMatchIndex, maxLines);
+        if (snippet != null) {
+            suggestedLines.add(bestMatchIndex);
+        }
+
+        return snippet;
     }
 
     /**
@@ -274,6 +311,94 @@ public class SuggestionEngine {
         }
 
         return null; // Não há próxima linha
+    }
+
+    /**
+     * Obtém snippet de linhas seguintes no mesmo bloco lógico.
+     */
+    private String getNextSnippetInSameBlock(String solution, int matchedLineIndex, int maxLines) {
+        String[] lines = solution.split("\n", -1);
+        int start = matchedLineIndex + 1;
+        if (start >= lines.length) {
+            return null;
+        }
+
+        int[] depthBeforeLine = buildBraceDepthBeforeLine(lines);
+        int firstMeaningful = -1;
+        for (int i = start; i < lines.length; i++) {
+            String trimmed = lines[i].trim();
+            if (trimmed.isEmpty() || ";".equals(trimmed)) {
+                continue;
+            }
+            firstMeaningful = i;
+            break;
+        }
+
+        if (firstMeaningful == -1) {
+            return null;
+        }
+
+        int baseDepth = depthBeforeLine[firstMeaningful];
+        StringBuilder snippet = new StringBuilder();
+        int usefulLineCount = 0;
+
+        for (int i = firstMeaningful; i < lines.length; i++) {
+            String current = lines[i];
+            String trimmed = current.trim();
+            int depth = depthBeforeLine[i];
+
+            if (i > firstMeaningful && depth < baseDepth) {
+                break;
+            }
+
+            if (i > firstMeaningful && depth == baseDepth && trimmed.startsWith("}")) {
+                break;
+            }
+
+            if (trimmed.isEmpty() || ";".equals(trimmed)) {
+                continue;
+            }
+
+            if (snippet.length() > 0) {
+                snippet.append("\n");
+            }
+            snippet.append(current);
+            usefulLineCount++;
+
+            if (usefulLineCount >= maxLines) {
+                break;
+            }
+        }
+
+        if (snippet.isEmpty()) {
+            return null;
+        }
+
+        return snippet.toString();
+    }
+
+    /**
+     * Calcula profundidade de chavetas antes de cada linha.
+     */
+    private int[] buildBraceDepthBeforeLine(String[] lines) {
+        int[] depth = new int[lines.length];
+        int currentDepth = 0;
+
+        for (int i = 0; i < lines.length; i++) {
+            depth[i] = Math.max(0, currentDepth);
+            String line = lines[i];
+
+            for (int j = 0; j < line.length(); j++) {
+                char ch = line.charAt(j);
+                if (ch == '{') {
+                    currentDepth++;
+                } else if (ch == '}') {
+                    currentDepth = Math.max(0, currentDepth - 1);
+                }
+            }
+        }
+
+        return depth;
     }
 
     /**
