@@ -73,6 +73,10 @@ public class MainApp extends Application {
      */
     @Override
     public void stop() {
+        if (uiController != null) {
+            uiController.shutdown();
+        }
+
         if (fileManager != null) {
             fileManager.cleanup();
         }

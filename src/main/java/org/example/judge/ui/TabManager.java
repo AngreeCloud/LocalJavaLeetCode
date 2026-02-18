@@ -2,6 +2,8 @@ package org.example.judge.ui;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import org.example.judge.model.ComparisonResult;
 
@@ -46,6 +48,8 @@ public class TabManager {
     // Tab ativa atual
     private String activeFileName;
     private TextArea activeEditor;
+    private BiConsumer<String, String> editorChangeListener;
+    private Consumer<String> activeFileChangeListener;
 
     /**
      * Construtor - Cria as tabs fixas.
@@ -75,8 +79,17 @@ public class TabManager {
                     if (entry.getValue() == newTab) {
                         activeFileName = entry.getKey();
                         activeEditor = solutionFileEditors.get(activeFileName);
+                        if (activeFileChangeListener != null) {
+                            activeFileChangeListener.accept(activeFileName);
+                        }
                         break;
                     }
+                }
+            } else {
+                activeFileName = null;
+                activeEditor = null;
+                if (activeFileChangeListener != null) {
+                    activeFileChangeListener.accept(null);
                 }
             }
         });
@@ -99,6 +112,11 @@ public class TabManager {
             editor.setPromptText("Código de " + fileName + "...");
             editor.setStyle("-fx-font-family: 'Courier New', monospace; -fx-font-size: 13px;");
             editor.setWrapText(false);
+            editor.textProperty().addListener((obs, oldValue, newValue) -> {
+                if (editorChangeListener != null) {
+                    editorChangeListener.accept(fileName, newValue);
+                }
+            });
             
             Tab tab = new Tab("📝 " + fileName, editor);
             tab.setClosable(false);
@@ -116,6 +134,9 @@ public class TabManager {
             activeFileName = firstName;
             activeEditor = solutionFileEditors.get(firstName);
             tabPane.getSelectionModel().select(solutionFileTabs.get(firstName));
+            if (activeFileChangeListener != null) {
+                activeFileChangeListener.accept(activeFileName);
+            }
         }
     }
 
@@ -182,6 +203,24 @@ public class TabManager {
      */
     public TextArea getActiveEditor() {
         return activeEditor;
+    }
+
+    /**
+     * Define callback para alterações de texto no editor.
+     *
+     * @param listener Callback com (nomeDoFicheiro, conteúdoAtual)
+     */
+    public void setEditorChangeListener(BiConsumer<String, String> listener) {
+        this.editorChangeListener = listener;
+    }
+
+    /**
+     * Define callback para mudança do ficheiro ativo.
+     *
+     * @param listener Callback com nome do ficheiro ativo (ou null)
+     */
+    public void setActiveFileChangeListener(Consumer<String> listener) {
+        this.activeFileChangeListener = listener;
     }
 
     /**
