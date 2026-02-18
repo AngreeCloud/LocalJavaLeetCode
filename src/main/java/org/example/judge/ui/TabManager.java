@@ -6,10 +6,14 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import org.example.judge.model.ComparisonResult;
+import org.fxmisc.flowless.VirtualizedScrollPane;
+import org.fxmisc.richtext.CodeArea;
+import org.fxmisc.richtext.LineNumberFactory;
 
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.input.KeyCode;
 
 /**
  * TabManager - Gestor das 4 tabs fixas da aplicação.
@@ -43,13 +47,15 @@ public class TabManager {
 
     // Tabs dinâmicas para ficheiros de solução (nome -> Tab)
     private Map<String, Tab> solutionFileTabs;
-    // Editores para cada ficheiro de solução (nome -> TextArea)
-    private Map<String, TextArea> solutionFileEditors;
+    // Editores para cada ficheiro de solução (nome -> CodeArea)
+    private Map<String, CodeArea> solutionFileEditors;
     // Tab ativa atual
     private String activeFileName;
-    private TextArea activeEditor;
+    private CodeArea activeEditor;
     private BiConsumer<String, String> editorChangeListener;
     private Consumer<String> activeFileChangeListener;
+
+    private static final String INDENT = "    ";
 
     /**
      * Construtor - Cria as tabs fixas.
@@ -108,17 +114,19 @@ public class TabManager {
         
         // Criar tabs para cada ficheiro
         for (String fileName : fileNames) {
-            TextArea editor = new TextArea();
-            editor.setPromptText("Código de " + fileName + "...");
+            CodeArea editor = new CodeArea();
             editor.setStyle("-fx-font-family: 'Courier New', monospace; -fx-font-size: 13px;");
-            editor.setWrapText(false);
+            editor.setParagraphGraphicFactory(LineNumberFactory.get(editor));
+            configureEditorBehavior(editor);
             editor.textProperty().addListener((obs, oldValue, newValue) -> {
                 if (editorChangeListener != null) {
                     editorChangeListener.accept(fileName, newValue);
                 }
             });
+
+            VirtualizedScrollPane<CodeArea> scrollPane = new VirtualizedScrollPane<>(editor);
             
-            Tab tab = new Tab("📝 " + fileName, editor);
+            Tab tab = new Tab("📝 " + fileName, scrollPane);
             tab.setClosable(false);
             
             solutionFileTabs.put(fileName, tab);
@@ -147,9 +155,9 @@ public class TabManager {
      * @param content Conteúdo do ficheiro
      */
     public void setSolutionFileContent(String fileName, String content) {
-        TextArea editor = solutionFileEditors.get(fileName);
+        CodeArea editor = solutionFileEditors.get(fileName);
         if (editor != null) {
-            editor.setText(content);
+            editor.replaceText(content);
         }
     }
 
@@ -201,7 +209,7 @@ public class TabManager {
      *
      * @return TextArea do editor ativo
      */
-    public TextArea getActiveEditor() {
+    public CodeArea getActiveEditor() {
         return activeEditor;
     }
 
@@ -263,18 +271,8 @@ public class TabManager {
      */
     public int getCurrentCursorLine() {
         if (activeEditor == null) return 0;
-        
-        String text = activeEditor.getText();
-        int caretPosition = activeEditor.getCaretPosition();
 
-        int lineCount = 0;
-        for (int i = 0; i < caretPosition && i < text.length(); i++) {
-            if (text.charAt(i) == '\n') {
-                lineCount++;
-            }
-        }
-
-        return lineCount;
+        return activeEditor.getCurrentParagraph();
     }
 
     /**
@@ -284,17 +282,9 @@ public class TabManager {
      */
     public String getCurrentLineContent() {
         if (activeEditor == null) return "";
-        
-        String text = activeEditor.getText();
-        int caretPosition = activeEditor.getCaretPosition();
 
-        int lineStart = text.lastIndexOf('\n', caretPosition - 1) + 1;
-        int lineEnd = text.indexOf('\n', caretPosition);
-        if (lineEnd == -1) {
-            lineEnd = text.length();
-        }
-
-        return text.substring(lineStart, lineEnd);
+        int paragraph = activeEditor.getCurrentParagraph();
+        return activeEditor.getParagraph(paragraph).getText();
     }
 
     /**
@@ -306,14 +296,8 @@ public class TabManager {
         if (activeEditor == null) return;
         
         int caretPosition = activeEditor.getCaretPosition();
-        String currentText = activeEditor.getText();
-
-        String newText = currentText.substring(0, caretPosition) +
-                        "\n" + suggestion +
-                        currentText.substring(caretPosition);
-
-        activeEditor.setText(newText);
-        activeEditor.positionCaret(caretPosition + suggestion.length() + 1);
+        activeEditor.insertText(caretPosition, "\n" + suggestion);
+        activeEditor.moveTo(caretPosition + suggestion.length() + 1);
     }
 
     /**
@@ -333,10 +317,134 @@ public class TabManager {
      */
     public Map<String, String> getAllSolutionFileContents() {
         Map<String, String> contents = new HashMap<>();
-        for (Map.Entry<String, TextArea> entry : solutionFileEditors.entrySet()) {
+        for (Map.Entry<String, CodeArea> entry : solutionFileEditors.entrySet()) {
             contents.put(entry.getKey(), entry.getValue().getText());
         }
         return contents;
+    }
+
+    /**
+     * Configura comportamentos de edição tipo IDE.
+     */
+    private void configureEditorBehavior(CodeArea editor) {
+        editor.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, event -> {
+            String character = event.getCharacter();
+            if (character == null || character.isEmpty()) {
+                return;
+            }
+
+            switch (character.charAt(0)) {
+                case '(':
+                    insertPair(editor, "(", ")");
+                    event.consume();
+                    break;
+                case '{':
+                    insertPair(editor, "{", "}");
+                    event.consume();
+                    break;
+                case '[':
+                    insertPair(editor, "[", "]");
+                    event.consume();
+                    break;
+                case '"':
+                    insertPair(editor, "\"", "\"");
+                    event.consume();
+                    break;
+                case '\'':
+                    insertPair(editor, "'", "'");
+                    event.consume();
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        editor.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.TAB) {
+                editor.replaceSelection(INDENT);
+                event.consume();
+                return;
+            }
+
+            if (event.getCode() == KeyCode.ENTER) {
+                handleSmartEnter(editor);
+                event.consume();
+            }
+        });
+    }
+
+    /**
+     * Insere automaticamente par de caracteres e posiciona cursor no meio.
+     */
+    private void insertPair(CodeArea editor, String open, String close) {
+        String selected = editor.getSelectedText();
+        int caret = editor.getCaretPosition();
+
+        if (selected != null && !selected.isEmpty()) {
+            editor.replaceSelection(open + selected + close);
+            return;
+        }
+
+        editor.replaceSelection(open + close);
+        editor.moveTo(caret + 1);
+    }
+
+    /**
+     * Implementa Enter inteligente com indentação de 4 espaços.
+     */
+    private void handleSmartEnter(CodeArea editor) {
+        String text = editor.getText();
+        int caret = editor.getCaretPosition();
+
+        int lineStart = text.lastIndexOf('\n', Math.max(0, caret - 1)) + 1;
+        int lineEnd = text.indexOf('\n', caret);
+        if (lineEnd == -1) {
+            lineEnd = text.length();
+        }
+
+        String lineBeforeCaret = text.substring(lineStart, caret);
+        String lineAfterCaret = text.substring(caret, lineEnd);
+        String baseIndent = extractLeadingWhitespace(text.substring(lineStart, lineEnd));
+        String beforeTrimmed = lineBeforeCaret.trim();
+        String afterTrimmed = lineAfterCaret.trim();
+
+        if (beforeTrimmed.endsWith("{")) {
+            String innerIndent = baseIndent + INDENT;
+            if (afterTrimmed.startsWith("}")) {
+                editor.insertText(caret, "\n" + innerIndent + "\n" + baseIndent);
+            } else {
+                editor.insertText(caret, "\n" + innerIndent + "\n" + baseIndent + "}");
+            }
+            editor.moveTo(caret + 1 + innerIndent.length());
+            return;
+        }
+
+        String targetIndent = baseIndent;
+        if (afterTrimmed.startsWith("}") && baseIndent.length() >= INDENT.length()) {
+            targetIndent = baseIndent.substring(0, baseIndent.length() - INDENT.length());
+        }
+
+        editor.insertText(caret, "\n" + targetIndent);
+        editor.moveTo(caret + 1 + targetIndent.length());
+    }
+
+    /**
+     * Extrai os espaços/tabs iniciais de uma linha.
+     */
+    private String extractLeadingWhitespace(String line) {
+        if (line == null || line.isEmpty()) {
+            return "";
+        }
+
+        int index = 0;
+        while (index < line.length()) {
+            char ch = line.charAt(index);
+            if (ch != ' ' && ch != '\t') {
+                break;
+            }
+            index++;
+        }
+        return line.substring(0, index);
     }
 
     /**
