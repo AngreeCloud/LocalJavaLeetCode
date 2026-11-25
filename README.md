@@ -1,5 +1,8 @@
 ﻿# Mini Judge de Programação Java
 Sistema local de avaliação automática de código Java com interface gráfica JavaFX.
+
+<img width="1366" height="720" alt="image" src="https://github.com/user-attachments/assets/4f5b2db2-f6a5-43fa-81d2-a040739deb5f" />
+
 ## 📋 Descrição
 Este projeto implementa um mini judge de programação que permite:
 - Carregar enunciados de problemas
